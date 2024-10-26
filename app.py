@@ -216,6 +216,102 @@ class TagButton(QPushButton):
         self.updateStyle()
 
 
+class TagManagementDialog(QDialog):
+
+    def __init__(self, current_tags, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Gestion des tags")
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #323232;
+            }
+            QLabel {
+                color: white;
+                font-size: 13px;
+            }
+            QLineEdit {
+                background-color: #3d3d3d;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 8px;
+                font-size: 13px;
+            }
+            QListWidget {
+                background-color: #3d3d3d;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 8px;
+                font-size: 13px;
+            }
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 8px;
+                font-size: 13px;
+                min-height: 35px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        # Liste des tags existants
+        self.tags_list = QListWidget()
+        for tag in current_tags:
+            self.tags_list.addItem(tag)
+        layout.addWidget(self.tags_list)
+
+        # Champ pour ajouter un nouveau tag
+        input_layout = QHBoxLayout()
+        self.new_tag_input = QLineEdit()
+        self.new_tag_input.setPlaceholderText("Nouveau tag...")
+        add_button = QPushButton("Ajouter")
+        add_button.clicked.connect(self.add_tag)
+        input_layout.addWidget(self.new_tag_input)
+        input_layout.addWidget(add_button)
+        layout.addLayout(input_layout)
+
+        # Bouton pour supprimer le tag sélectionné
+        delete_button = QPushButton("Supprimer le tag sélectionné")
+        delete_button.clicked.connect(self.delete_tag)
+        layout.addWidget(delete_button)
+
+        # Boutons OK/Annuler
+        buttons = QHBoxLayout()
+        ok_button = QPushButton("OK")
+        cancel_button = QPushButton("Annuler")
+        ok_button.clicked.connect(self.accept)
+        cancel_button.clicked.connect(self.reject)
+        buttons.addWidget(ok_button)
+        buttons.addWidget(cancel_button)
+        layout.addLayout(buttons)
+
+    def add_tag(self):
+        new_tag = self.new_tag_input.text().strip()
+        if new_tag:
+            self.tags_list.addItem(new_tag)
+            self.new_tag_input.clear()
+
+    def delete_tag(self):
+        current_item = self.tags_list.currentItem()
+        if current_item:
+            self.tags_list.takeItem(self.tags_list.row(current_item))
+
+    def get_tags(self):
+        return [
+            self.tags_list.item(i).text()
+            for i in range(self.tags_list.count())
+        ]
+
+
 class TagSection(QWidget):
 
     def __init__(self, title, tags, parent=None):
@@ -260,6 +356,39 @@ class TagSection(QWidget):
         if self.buttons:
             self.buttons[0].setChecked(True)
             self.buttons[0].updateStyle()
+        header_layout = QHBoxLayout()
+        title_label = QLabel(title)
+        manage_button = QPushButton("+")
+        manage_button.setFixedSize(30, 30)
+        manage_button.clicked.connect(self.manage_tags)
+        header_layout.addWidget(title_label)
+        header_layout.addWidget(manage_button)
+        header_layout.addStretch()
+        layout.addLayout(header_layout)
+
+    def manage_tags(self):
+        current_tags = [btn.text() for btn in self.buttons]
+        dialog = TagManagementDialog(current_tags, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            new_tags = dialog.get_tags()
+            # Supprimer les anciens boutons
+            for btn in self.buttons:
+                btn.deleteLater()
+            self.buttons.clear()
+
+            # Créer les nouveaux boutons
+            tags_layout = self.findChild(QHBoxLayout)
+            for tag in new_tags:
+                btn = TagButton(tag)
+                btn.clicked.connect(
+                    lambda checked, b=btn: self.handleTagClick(b))
+                self.buttons.append(btn)
+                tags_layout.addWidget(btn)
+
+            # Sélectionner le premier tag par défaut
+            if self.buttons:
+                self.buttons[0].setChecked(True)
+                self.buttons[0].updateStyle()
 
     def handleTagClick(self, clicked_button):
         for button in self.buttons:

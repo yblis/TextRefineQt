@@ -1,0 +1,17 @@
+{
+  "Email professionnel": {
+    "tone": "Professionnel",
+    "format": "Mail",
+    "length": "Moyen"
+  },
+  "Article blog décontracté": {
+    "tone": "Décontracté",
+    "format": "Article de blog",
+    "length": "Long"
+  },
+  "Note rapide": {
+    "tone": "Informatif",
+    "format": "Paragraphe",
+    "length": "Court"
+  }
+}

@@ -472,8 +472,13 @@ Respecte scrupuleusement le format demandé, la longueur et le ton. Ne rajoute a
         prompt_button.setObjectName("mainButton")
         prompt_button.clicked.connect(self.open_prompt_config)
 
+        translate_button = QPushButton("🌐 Traduction")
+        translate_button.setObjectName("mainButton")
+        translate_button.clicked.connect(self.open_translation)
+
         config_layout.addWidget(settings_button)
         config_layout.addWidget(prompt_button)
+        config_layout.addWidget(translate_button)
         layout.addLayout(config_layout)
 
         # Zone de texte d'entrée
@@ -549,6 +554,10 @@ Respecte scrupuleusement le format demandé, la longueur et le ton. Ne rajoute a
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.system_prompt = dialog.prompt_text.toPlainText()
 
+    def open_translation(self):
+        dialog = TranslationDialog(self)
+        dialog.exec()
+
     def reformulate_text(self):
         input_text = self.input_text.toPlainText().strip()
         if not input_text:
@@ -609,6 +618,148 @@ Longueur: {self.length_section.getSelectedTag()}
 
     def clear_output(self):
         self.output_text.clear()
+
+
+class TranslationDialog(QDialog):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Traduction")
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #323232;
+            }
+            QLabel {
+                color: white;
+                font-size: 13px;
+            }
+            QTextEdit {
+                background-color: #3d3d3d;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 15px;
+                font-size: 13px;
+            }
+            QComboBox {
+                background-color: #3d3d3d;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 8px;
+                font-size: 13px;
+                min-height: 35px;
+            }
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 8px;
+                font-size: 13px;
+                min-height: 35px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        # Zone de texte d'entrée
+        input_label = QLabel("Texte à traduire:")
+        self.input_text = QTextEdit()
+        self.input_text.setPlaceholderText("Entrez votre texte ici...")
+        layout.addWidget(input_label)
+        layout.addWidget(self.input_text)
+
+        # Sélecteur de langue
+        lang_layout = QHBoxLayout()
+        lang_label = QLabel("Traduire vers:")
+        self.lang_combo = QComboBox()
+        self.lang_combo.addItems(
+            ["Anglais", "Espagnol", "Allemand", "Italien", "Portugais"])
+        lang_layout.addWidget(lang_label)
+        lang_layout.addWidget(self.lang_combo)
+        layout.addLayout(lang_layout)
+
+        # Bouton traduire
+        self.translate_button = QPushButton("Traduire")
+        self.translate_button.clicked.connect(self.translate_text)
+        layout.addWidget(self.translate_button)
+
+        # Zone de texte de sortie
+        output_label = QLabel("Traduction:")
+        self.output_text = QTextEdit()
+        self.output_text.setReadOnly(True)
+        layout.addWidget(output_label)
+        layout.addWidget(self.output_text)
+
+        # Boutons copier/fermer
+        buttons_layout = QHBoxLayout()
+        copy_button = QPushButton("Copier")
+        close_button = QPushButton("Fermer")
+        copy_button.clicked.connect(self.copy_translation)
+        close_button.clicked.connect(self.close)
+        buttons_layout.addWidget(copy_button)
+        buttons_layout.addWidget(close_button)
+        layout.addLayout(buttons_layout)
+
+    def translate_text(self):
+        input_text = self.input_text.toPlainText().strip()
+        target_lang = self.lang_combo.currentText()
+
+        if not input_text:
+            return
+
+        # Mapping des langues pour le prompt
+        lang_map = {
+            "Anglais": "English",
+            "Espagnol": "Spanish",
+            "Allemand": "German",
+            "Italien": "Italian",
+            "Portugais": "Portuguese"
+        }
+
+        prompt = f"""<|im_start|>system
+Tu es un expert en traduction. Traduis le texte uniquement en {lang_map[target_lang]}. IMPORTANT: retourne UNIQUEMENT la traduction, sans aucun autre commentaire.
+<|im_end|>
+<|im_start|>user
+{input_text}
+<|im_end|>
+<|im_start|>assistant"""
+
+        try:
+            self.translate_button.setEnabled(False)
+            self.translate_button.setText("En cours...")
+
+            response = requests.post(
+                f'{self.parent().ollama_url}/api/generate',
+                json={
+                    "model": self.parent().current_model,
+                    "prompt": prompt,
+                    "stream": False
+                })
+
+            if response.status_code == 200:
+                result = response.json()
+                translated_text = result['response'].strip()
+                self.output_text.setText(translated_text)
+            else:
+                self.output_text.setText(
+                    "Erreur lors de la traduction. Veuillez réessayer.")
+
+        except Exception as e:
+            self.output_text.setText(f"Erreur lors de la traduction: {str(e)}")
+        finally:
+            self.translate_button.setEnabled(True)
+            self.translate_button.setText("Traduire")
+
+    def copy_translation(self):
+        clipboard = QApplication.clipboard()
+        clipboard.setText(self.output_text.toPlainText())
 
 
 def main():

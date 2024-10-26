@@ -1,7 +1,7 @@
 import sys
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QTextEdit, QPushButton, QLabel,
-                             QDialog, QLineEdit, QComboBox)
+                             QDialog, QLineEdit, QComboBox, QListWidget)
 from PyQt6.QtCore import Qt
 import requests
 import os
@@ -349,6 +349,25 @@ class TagSection(QWidget):
             self.buttons.append(btn)
             tags_layout.addWidget(btn)
 
+        # Ajouter le bouton + juste après les tags
+        manage_button = QPushButton("+")
+        manage_button.setFixedSize(30, 30)
+        manage_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 15px;
+                font-size: 20px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """)
+        manage_button.clicked.connect(self.manage_tags)
+        tags_layout.addWidget(manage_button)
+
         tags_layout.addStretch()
         layout.addWidget(tags_container)
 
@@ -356,15 +375,6 @@ class TagSection(QWidget):
         if self.buttons:
             self.buttons[0].setChecked(True)
             self.buttons[0].updateStyle()
-        header_layout = QHBoxLayout()
-        title_label = QLabel(title)
-        manage_button = QPushButton("+")
-        manage_button.setFixedSize(30, 30)
-        manage_button.clicked.connect(self.manage_tags)
-        header_layout.addWidget(title_label)
-        header_layout.addWidget(manage_button)
-        header_layout.addStretch()
-        layout.addLayout(header_layout)
 
     def manage_tags(self):
         current_tags = [btn.text() for btn in self.buttons]

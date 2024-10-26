@@ -1,105 +1,101 @@
-import sys
+from flask import Flask, render_template, request, jsonify
+import requests
 import json
 from datetime import datetime
 from pathlib import Path
-import requests
+import os
+
+app = Flask(__name__)
 
 # Create data directory
 data_dir = Path("data")
 data_dir.mkdir(exist_ok=True)
 
-class TextReformulator:
+class HistoryManager:
     def __init__(self):
-        self.ollama_url = "http://localhost:11434"
-        self.current_model = "qwen2.5:3b"
-        self.system_prompt = """Tu es un expert en reformulation. Tu dois reformuler le texte selon les paramètres spécifiés par l'utilisateur: ton, format et longueur. IMPORTANT : retourne UNIQUEMENT le texte reformulé, sans aucune mention des paramètres. 
+        self.history_file = data_dir / "history.json"
+        self.history = self.load_history()
+
+    def load_history(self):
+        if self.history_file.exists():
+            with open(self.history_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return []
+
+    def add_entry(self, original_text, reformulated_text, parameters):
+        entry = {
+            'timestamp': datetime.now().isoformat(),
+            'original': original_text,
+            'reformulated': reformulated_text,
+            'parameters': parameters
+        }
+        self.history.append(entry)
+        self.save_history()
+
+    def save_history(self):
+        with open(self.history_file, 'w', encoding='utf-8') as f:
+            json.dump(self.history[-100:], f, ensure_ascii=False, indent=2)
+
+history_manager = HistoryManager()
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/reformulate', methods=['POST'])
+def reformulate():
+    data = request.json
+    text = data.get('text', '')
+    tone = data.get('tone', 'Professionnel')
+    format_type = data.get('format', 'Paragraphe')
+    length = data.get('length', 'Moyen')
+
+    if not text:
+        return jsonify({'error': 'Please enter text to reformulate'}), 400
+
+    system_prompt = """Tu es un expert en reformulation. Tu dois reformuler le texte selon les paramètres spécifiés par l'utilisateur: ton, format et longueur. IMPORTANT : retourne UNIQUEMENT le texte reformulé, sans aucune mention des paramètres. 
 Respecte scrupuleusement le format demandé, la longueur et le ton. Ne rajoute aucun autre commentaire."""
 
-    def reformulate(self, text, tone="Professionnel", format="Paragraphe", length="Moyen"):
-        prompt = f"""<|im_start|>system
-{self.system_prompt}
+    prompt = f"""<|im_start|>system
+{system_prompt}
 <|im_end|>
 <|im_start|>user
 Texte à reformuler: {text}
 Ton: {tone}
-Format: {format}
+Format: {format_type}
 Longueur: {length}
 <|im_end|>
 <|im_start|>assistant"""
 
-        try:
-            response = requests.post(
-                f'{self.ollama_url}/api/generate',
-                json={
-                    "model": self.current_model,
-                    "prompt": prompt,
-                    "stream": False
-                }
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                reformulated_text = result['response']
-                
-                lines = reformulated_text.split('\n')
-                cleaned_lines = [line for line in lines if not any(x in line.lower() for x in 
-                               ['paramètre', 'ton:', 'format:', 'longueur:', 'voici', 'reformulation'])]
-                return '\n'.join(cleaned_lines).strip()
-            else:
-                return f"Error: Failed to reformulate text (Status code: {response.status_code})"
-        except Exception as e:
-            return f"Error: {str(e)}"
-
-def main():
-    reformulator = TextReformulator()
-    
-    print("=== Text Reformulator ===")
-    print("\nEnter your text (press Ctrl+D or Ctrl+Z to finish):")
-    
-    # Read multiline input
-    lines = []
     try:
-        while True:
-            line = input()
-            lines.append(line)
-    except EOFError:
-        text = '\n'.join(lines)
-    
-    # Predefined options
-    tones = ["Professionnel", "Informatif", "Décontracté", "Enthousiaste", "Drôle", "Sarcastique"]
-    formats = ["Mail", "Paragraphe", "Idées", "Article de blog"]
-    lengths = ["Court", "Moyen", "Long"]
-    
-    print("\nSelect tone:")
-    for i, tone in enumerate(tones, 1):
-        print(f"{i}. {tone}")
-    tone_idx = int(input("Enter number: ")) - 1
-    selected_tone = tones[tone_idx]
-    
-    print("\nSelect format:")
-    for i, fmt in enumerate(formats, 1):
-        print(f"{i}. {fmt}")
-    format_idx = int(input("Enter number: ")) - 1
-    selected_format = formats[format_idx]
-    
-    print("\nSelect length:")
-    for i, length in enumerate(lengths, 1):
-        print(f"{i}. {length}")
-    length_idx = int(input("Enter number: ")) - 1
-    selected_length = lengths[length_idx]
-    
-    print("\nReformulating...")
-    result = reformulator.reformulate(text, selected_tone, selected_format, selected_length)
-    
-    print("\n=== Result ===")
-    print(result)
-    
-    # Save to file
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_file = f"output_{timestamp}.txt"
-    with open(output_file, "w", encoding="utf-8") as f:
-        f.write(result)
-    print(f"\nOutput saved to: {output_file}")
+        response = requests.post('http://localhost:11434/api/generate',
+                               json={
+                                   "model": "qwen2.5:3b",
+                                   "prompt": prompt,
+                                   "stream": False
+                               })
+        
+        if response.status_code == 200:
+            result = response.json()
+            reformulated_text = result['response']
+            
+            lines = reformulated_text.split('\n')
+            cleaned_lines = [line for line in lines if not any(x in line.lower() for x in 
+                           ['paramètre', 'ton:', 'format:', 'longueur:', 'voici', 'reformulation'])]
+            cleaned_text = '\n'.join(cleaned_lines).strip()
+            
+            parameters = {
+                "tone": tone,
+                "format": format_type,
+                "length": length
+            }
+            history_manager.add_entry(text, cleaned_text, parameters)
+            
+            return jsonify({'result': cleaned_text})
+        else:
+            return jsonify({'error': 'Reformulation failed. Please try again.'}), 500
+    except Exception as e:
+        return jsonify({'error': f'Error: {str(e)}'}), 500
 
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=3000)

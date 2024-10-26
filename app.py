@@ -59,7 +59,7 @@ class PromptDialog(QDialog):
         layout.addWidget(prompt_label)
 
         self.prompt_text = QTextEdit()
-        self.prompt_text.setMinimumSize(400, 200)
+        self.prompt_text.setMinimumSize(400, 300)
         self.prompt_text.setText(current_prompt)
         layout.addWidget(self.prompt_text)
 

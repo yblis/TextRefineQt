@@ -399,8 +399,9 @@ Respecte scrupuleusement le format demandé, la longueur et le ton. Ne rajoute a
         dialog = SettingsDialog(self.ollama_url, self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.ollama_url = dialog.url_input.text()
-            if dialog.models_combo.currentData():
-                self.current_model = dialog.models_combo.currentData()['name']
+            # Vérifier si un modèle est sélectionné dans le combo
+            if dialog.models_combo.currentText():
+                self.current_model = dialog.models_combo.currentText()
 
     def open_prompt_config(self):
         dialog = PromptDialog(self.system_prompt, self)

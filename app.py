@@ -679,8 +679,10 @@ class TranslationDialog(QDialog):
         lang_layout = QHBoxLayout()
         lang_label = QLabel("Traduire vers:")
         self.lang_combo = QComboBox()
-        self.lang_combo.addItems(
-            ["Anglais", "Espagnol", "Allemand", "Italien", "Portugais"])
+        self.lang_combo.addItems([
+            "Anglais", "Français", "Espagnol", "Allemand", "Italien",
+            "Portugais"
+        ])
         lang_layout.addWidget(lang_label)
         lang_layout.addWidget(self.lang_combo)
         layout.addLayout(lang_layout)
@@ -725,6 +727,7 @@ class TranslationDialog(QDialog):
         # Mapping des langues pour le prompt
         lang_map = {
             "Anglais": "English",
+            "Français": "French",
             "Espagnol": "Spanish",
             "Allemand": "German",
             "Italien": "Italian",

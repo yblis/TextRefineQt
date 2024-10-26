@@ -536,8 +536,8 @@ Respecte scrupuleusement le format demandé, la longueur et le ton. Ne rajoute a
         buttons_layout.addWidget(clear_button)
         layout.addLayout(buttons_layout)
 
-        self.setMinimumSize(700, 900)
-        self.resize(700, 900)
+        self.setMinimumSize(900, 1000)
+        self.resize(900, 1000)
 
     def open_settings(self):
         dialog = SettingsDialog(self.ollama_url, self)
@@ -706,6 +706,14 @@ class TranslationDialog(QDialog):
         buttons_layout.addWidget(copy_button)
         buttons_layout.addWidget(close_button)
         layout.addLayout(buttons_layout)
+
+        self.setMinimumSize(800, 900)  # Définit la taille minimale
+        self.resize(800, 900)  # Définit la taille par défaut
+
+        # Ajustez aussi la taille des zones de texte
+        self.input_text.setMinimumHeight(
+            200)  # Zone de texte d'entrée plus grande
+        self.output_text.setMinimumHeight(200)  # Zone de texte de sortie plus
 
     def translate_text(self):
         input_text = self.input_text.toPlainText().strip()
